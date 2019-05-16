@@ -3,39 +3,55 @@
 <title>Mark Hay</title>
 
 <style>
+
 body {
     background-color: #500064;
-    color: #dfd3ce;
-    font-family: monospace;
     font-size: 16px;
-    max-width: 90%;
-    margin: auto;
 }
 
 h2 {
-    margin-top: 2em;
+    margin-top: 0.5em
 }
 
 h3 {
     margin-top: 1em;
 }
 
+.box {
+    background-color: #ffffef;
+    color: #000000;
+    font-family: arial;
+    max-width: 77%;
+    margin: auto;
+    padding: 10px;
+    margin-top: 1em;
+}
+
+.back {
+    margin: auto;
+    margin-top: 10px;
+    font-family: monospace;
+}
+
+a.backl, a.backl:visited {
+    color: #e3b759;
+}
+
 code {
     background-color: #000000;
+    color: #dfd3ce;
     border: 1px solid #dfd3ce;
     display: block;
     padding: 10px;
 }
 
-a, a:visited {
-    color: #e3b759;
-}
 </style>
 
 <meta charset="UTF-8">
 </head>
 <body>
-
+    <div class="back"><a class="backl" href="./index.html">return to home</a></div>
+    <div class="box">
     <h2>Mark Hay</h2>
     <p>Hi! I'm Mark, a software developer living in the United States, with interests in functional programming, programming languages, machine learning, and mathematics. I write primarily in Haskell.</p>
 
@@ -52,10 +68,10 @@ a, a:visited {
     <p><a href="https://www.linkedin.com/in/mark-hay-166183129/">linkedin</a></p>
     <p><a href="cv.pdf">resume</a></p>
     <p><a rel="me" href="https://niu.moe/@haym">mstdn</a></p>
-
     <pre><code>-- Run this program to get my email (or just look at it, it's not that hard!)
 main :: IO ()
 main = putStrLn (reverse "ude TOD smailliw TA 6ham")</code></pre>
 
+    </div>
 </body>
 </html>
