@@ -1,0 +1,21 @@
+body {
+    font-family: "Hoefler Text", "Times New Roman", serif;
+    font-size: 16px;
+    max-width: 72%;
+    margin: auto;
+}
+
+h2 {
+    margin-top: 2em;
+}
+
+h3 {
+    margin-top: 1em;
+}
+
+code {
+    background-color: #000000;
+    border: 1px solid #dfd3ce;
+    display: block;
+    padding: 10px;
+}
