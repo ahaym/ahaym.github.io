@@ -22,6 +22,10 @@ code {
     padding: 10px;
 }
 
+pre {
+  white-space: pre-wrap;
+}
+
 a, a:visited {
     color: #e3b759;
 }
