@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<!-- saved from url=(0076)file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#best-practices -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>.tql Manual</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, sans-serif; line-height: 1.5; max-width: 1040px; margin: 40px auto; padding: 0 24px; color: #171717;">
+    <div>
+      <p style="margin: 0 0 8px; color: #525252;">TextQL Ontology Repo Reference</p>
+      <h1 style="margin: 0 0 12px; font-size: 40px; line-height: 1.1;">.tql Manual</h1>
+      <p style="margin: 0; font-size: 18px; color: #404040;">A practical reference for customer admins, power users, internal developers, and Ana AI.</p>
+    </div>
+
+    <div style="margin: 32px 0; padding: 16px 20px; border: 1px solid #d4d4d4;">
+      <strong>Contents</strong>
+      <ol style="margin: 8px 0 0 20px; padding: 0;">
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#motivation">Motivation</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#mental-model">Mental Model</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#language-spec">Short Language Spec</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#features">Features</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#patterns">Patterns</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#best-practices">Best Practices</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#examples">Small Example</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#ana">Guidance For Ana</a></li>
+        <li><a href="file:///Users/markhay/src/demo2/docs/internal/tql-manual.html#checklist">Checklist</a></li>
+      </ol>
+    </div>
+
+    <div>
+      <div id="motivation">
+        <h2>Motivation</h2>
+        <p>The core primitive for knowledge management in TextQL is the git-backed ontology repo. Business definitions, SQL templates, notes, examples, dashboard snippets, spreadsheet references, and operating rules should live in the same versioned file tree and cross-reference one another naturally.</p>
+
+        <p><code>.tql</code> is the SQL-native semantic layer file format for that repository. It replaces application-stored ontology objects, relations, and metrics with reviewable files. Those files define governed metrics, dimensions, filters, joins, query-backed objects, reusable functions, and runtime-aware access logic while still compiling to warehouse-native SQL.</p>
+
+        <h3>Why files and folders?</h3>
+        <ul>
+          <li>Frontier AI is strongest when working with files, folders, search, terminal tools, diffs, and review workflows.</li>
+          <li>Files let Ana choose the right exploration strategy: lexical search, semantic search, structural search, import following, local previews, and temporary scratch edits.</li>
+          <li>Any context file can sit near the model it supports: prose explanations, generated SQL examples, source statistics, dashboard components, style references, spreadsheet exports, and presentation templates.</li>
+          <li>Git gives teams diffs, approvals, history, rollback, auditability, and a familiar workflow for improving Ana's behavior over time.</li>
+          <li>TextQL RBAC, SCIM, and SSO can control who can view, propose, approve, and use ontology repo content.</li>
+        </ul>
+
+        <h3>Locality of behavior</h3>
+        <p>A major design goal is locality of behavior: the behavior of a semantic unit should be as obvious as possible by reading that unit and the nearby files it imports. <code>.tql</code> intentionally keeps the declaration of a metric, dimension, filter, or join close to the SQL it affects.</p>
+
+        <p>This is the main contrast with highly dispersed semantic systems. A query should not require a reader to mentally stitch together distant UI state, hidden application objects, injected prompts, and warehouse SQL. A <code>.tql</code> file should show:</p>
+        <ul>
+          <li>what parameters callers can provide,</li>
+          <li>what metric labels mean,</li>
+          <li>what dimension labels select,</li>
+          <li>which joins are trusted,</li>
+          <li>which filters are valid,</li>
+          <li>which runtime roles or client attributes are required, and</li>
+          <li>what SQL is ultimately assembled.</li>
+        </ul>
+
+        <p><code>.tql</code> still supports reuse through imports and helper files. The point is not to inline every implementation detail into one huge file. The point is to make the invocation and declaration of behavior visible where the behavior matters, and to keep shared logic in small, nearby modules with obvious names.</p>
+
+        <h3>No query compiler</h3>
+        <p><code>.tql</code> is not centered around a black-box query compiler. It is centered around authored SQL fragments, sanitized interpolation, lambdas, and helper patterns for common BI workflows. That makes the generated SQL inspectable, keeps behavior local, and avoids a large hidden translation layer between the model and the warehouse.</p>
+
+        <p>This matters for AI. Ana can read the same source that produces the SQL. She can see the metric formula, the join, the filter registry, and the runtime guard in the file rather than reverse-engineering behavior from compiler output or opaque semantic-model state.</p>
+
+        <p>If a <code>.tql</code> entry does not support exactly what Ana needs, it is still valuable. Ana can read the entry as a reference for trusted metric definitions, joins, table aliases, filter keys, and access rules, then manually write a one-off SQL query using that context. This is a major advantage over semantic modeling languages that only expose a compiler: <code>.tql</code> is both executable and directly useful as AI-readable source material.</p>
+
+        <h3>Why not only text-to-SQL?</h3>
+        <p>Freeform text-to-SQL is useful for discovery, but it is not enough for governed analytics. Teams need stable definitions for revenue, active customer, ARR, churn, valid status, trusted joins, tenant scoping, and role-aware access. <code>.tql</code> gives Ana a governed surface she can rely on, while preserving an escape hatch for direct SQL when no model covers the question.</p>
+
+        <h3>Why not only a rigid semantic UI?</h3>
+        <p>Real warehouses contain imperfect schemas, legacy tables, bridge joins, role-playing dimensions, bespoke access rules, and business-specific calculations. <code>.tql</code> keeps a SQL-shaped escape hatch so teams can model reality without forcing every definition through a narrow UI schema or requiring TextQL to build complex multi-dialect semantic compilation for every warehouse edge case.</p>
+      </div>
+
+      <div id="mental-model">
+        <h2>Mental Model</h2>
+        <p>A <code>.tql</code> file is a typed program that renders SQL.</p>
+        <ul>
+          <li><strong>Authored SQL fragments are trusted.</strong> They come from ontology files that are reviewed and governed.</li>
+          <li><strong>Parameter values are untrusted data.</strong> They can become bind values or escaped inline literals, but they cannot become SQL structure by themselves.</li>
+          <li><strong>Sets choose authored structure.</strong> A caller can request <code>"revenue"</code>, but only the authored <code>matchSet</code> arm decides what SQL <code>"revenue"</code> means.</li>
+          <li><strong>Filters are compiled from a registry.</strong> A caller can request an allowed key and operator, but only authored <code>filterables</code> decide which SQL expression is filtered.</li>
+          <li><strong>Runtime context is explicit.</strong> Role names and client attributes are available under <code>_tql</code> so access-aware behavior lives in versioned code.</li>
+        </ul>
+
+        <p>Ana can take three different actions on <code>.tql</code> entries:</p>
+        <ul>
+          <li><code>inspect</code>: parse the file and return parameter names, types, defaults, and docs from <code>--</code> comments in the <code>params</code> block.</li>
+          <li><code>render</code>: render SQL for a supplied JSON parameter object.</li>
+          <li><code>execute</code>: render SQL and run it against a connector.</li>
+        </ul>
+        <p>If an entry does not support what Ana wants directly, she can use it as a reference for manually writing a query. The file still tells her which business definitions, joins, filters, and runtime constraints are trusted.</p>
+      </div>
+
+      <div id="language-spec">
+        <h2>Short Language Spec</h2>
+
+        <h3>File forms</h3>
+        <p><code>.tql</code> files have two common shapes.</p>
+
+        <h4>Plain SQL template</h4>
+        <p>Use this when the file is basically SQL with direct parameters. In a plain body, interpolation is limited to parameter names.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>params {
+  -- Country code. Examples: "US", "CA", "BR"
+  country: String = "US"
+
+  -- Inclusive lower bound in ISO 8601 timestamp format.
+  created_after: Timestamp?
+}
+
+SELECT *
+FROM visits
+WHERE country = ${country}
+  AND created_at &gt;= ${created_after}</code></pre>
+
+        <h4>Expression body</h4>
+        <p>Use this when you need branching, reusable fragments, imports, helper functions, semantic views, or conditional joins. The expression body must evaluate to a <code>SqlFragment</code>, usually with <code>sql"..."</code> or <code>sql'' ... ''</code>.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>params {
+  include_region: Bool = false
+}
+
+let
+  select_expr = if include_region then sql"region, COUNT(*)" else sql"COUNT(*)"
+  group_clause = if include_region then sql"GROUP BY region" else sql""
+in sql''
+  SELECT ${select_expr}
+  FROM orders
+  ${group_clause}
+''</code></pre>
+
+        <h3>Imports</h3>
+        <p>Project templates support imports between <code>.tql</code> files. Relative imports resolve from the importing file. Absolute imports resolve from the project root.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>import t from "../relations/transactions.tql"
+import dims from "../dimensions/standard.tql"
+import { eq } from "../filters/compare.tql"</code></pre>
+        <p>Whole-record imports bind the exported record to a local name. Destructured imports bind named fields from the exported record.</p>
+
+        <h3>Params block</h3>
+        <p>Parameters are declared in a <code>params { ... }</code> block. Use one declaration per line and no commas.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>params {
+  -- Metrics to include.
+  metrics: Set&lt;"revenue" | "order_count"&gt; = []
+
+  -- Optional dimensions.
+  dimensions: Set&lt;"customer" | "month"&gt; = []
+
+  -- Filters to apply. Allowed keys: customer_name (equals, like), ordered_at (gte, lte, between).
+  filters: List&lt;FilterInput&gt; = []
+
+  -- Optional region override.
+  region: String?
+}</code></pre>
+
+        <table summary=".tql parameter types and JSON shapes" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+          <thead>
+            <tr>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">.tql type</th>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">JSON shape</th>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Int</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">integer</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Non-integer numbers are rejected.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Float</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">number</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Integers are accepted.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>String</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">string</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Used for literal values, not SQL identifiers.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Bool</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">boolean</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Use with <code>if</code> or boolean operators.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Date</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">string</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Document the expected format. <code>.tql</code> does not deeply parse dates.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Timestamp</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">string</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Document timezone expectations.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>Set&lt;"..."&gt;</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">array of strings</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Values are deduped and validated against the allowed labels.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>List&lt;T&gt;</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">array</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Elements are validated recursively.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>FilterInput</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">object</td><td style="border: 1px solid #d4d4d4; padding: 8px;">Usually used as <code>List&lt;FilterInput&gt;</code>.</td></tr>
+          </tbody>
+        </table>
+
+        <p><code>?</code> marks a nullable parameter. Omitted nullable params resolve to <code>null</code>. Non-nullable params without defaults are required. Defaults are supported for scalar literals and empty lists or sets.</p>
+
+        <h4>Pure expressions in <code>Set</code> signatures</h4>
+        <p><code>Set</code> type signatures can use pure expressions, not only literal unions. This is a key technique for multi-file ontology repo layouts: object modules can export metric and dimension key lists, and query entrypoints can compose those lists into their public parameter types.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- objects/orders.tql
+let
+  metric_keys = ["revenue", "order_count"]
+  dimension_keys = ["Orders.customer", "Orders.month"]
+in { metric_keys, dimension_keys }
+
+-- queries/orders.tql
+import orders from "../objects/orders.tql"
+
+params {
+  metrics: Set&lt;orders.metric_keys&gt; = []
+  dimensions: Set&lt;orders.dimension_keys ++ ["Orders.region"]&gt; = []
+}</code></pre>
+
+        <h3>Expressions</h3>
+        <ul>
+          <li>Literals: numbers, strings, booleans, <code>null</code>, lists, and records.</li>
+          <li>Bindings: <code>let ... in ...</code>, evaluated in order. Duplicate binding names are rejected.</li>
+          <li>Records: <code>{ expr = sql"b.name", join = sql"JOIN buyers b ON ..." }</code>.</li>
+          <li>Record shorthand: <code>{ expr, join }</code>.</li>
+          <li>Field access: <code>dims.buyer.expr</code>.</li>
+          <li>Conditionals: <code>if condition then value else value</code>. Only the selected branch is evaluated.</li>
+          <li>Lambdas: <code>\col val -&gt; sql"${col} = ${val}"</code>. Function application is whitespace-separated.</li>
+          <li>Set matching: <code>matchSet dimensions { "buyer" -&gt; ... }</code>.</li>
+        </ul>
+
+        <h3>Operators</h3>
+        <table summary=".tql expression operators" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+          <thead>
+            <tr>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">Category</th>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">Operators</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;">Boolean</td><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>||</code>, <code>&amp;&amp;</code>, <code>not</code></td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;">Equality</td><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>==</code>, <code>!=</code></td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;">Comparison</td><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code></td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;">Concatenation</td><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>++</code> for two <code>SqlFragment</code> values or two lists.</td></tr>
+          </tbody>
+        </table>
+
+        <p>Precedence, from highest to lowest: field access and function application, <code>not</code>, <code>++</code>, comparisons, equality, <code>&amp;&amp;</code>, <code>||</code>. Use parentheses when mixing boolean operators.</p>
+
+        <h3>SQL fragments and interpolation</h3>
+        <p>Use <code>sql"..."</code> for short fragments and <code>sql'' ... ''</code> for multiline SQL.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>sql''
+  SELECT ${select_expr}
+  FROM orders o
+  ${where_clause}
+''</code></pre>
+
+        <p>Inside <code>sql</code>, <code>${expr}</code> evaluates an expression and lowers it into SQL. Scalar values become bind values or escaped inline values. <code>null</code> becomes <code>NULL</code>. Lists of scalar values become SQL tuples. <code>SqlFragment</code> values splice in directly.</p>
+
+        <p><strong>Never quote interpolations yourself.</strong></p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- Correct
+WHERE country = ${country}
+
+-- Wrong: .tql rejects interpolations inside SQL string literals.
+WHERE country = '${country}'</code></pre>
+
+        <p>Nullable params are not omitted automatically. If <code>created_after</code> is <code>null</code>, <code>created_at &gt;= ${created_after}</code> renders a <code>NULL</code> comparison. Use branching for optional predicates.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>let
+  where_clause =
+    if created_after == null
+    then sql""
+    else sql"WHERE created_at &gt;= ${created_after}"
+in sql"SELECT * FROM visits ${where_clause}"</code></pre>
+
+        <p>List interpolation already adds parentheses. Write <code>WHERE id IN ${ids}</code>, not <code>WHERE id IN (${ids})</code>.</p>
+
+        <h3>Builtins</h3>
+        <table summary=".tql builtins" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+          <thead>
+            <tr>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">Builtin</th>
+              <th style="text-align: left; border: 1px solid #d4d4d4; padding: 8px;">Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>concatSep</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Concatenates a list of <code>SqlFragment</code> values with an authored string literal separator. Empty fragments are skipped.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>wrap</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Adds an authored prefix and suffix only when the fragment is non-empty.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>isEmpty</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Returns true for empty fragments, strings, sets, lists, and <code>null</code>.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>map</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Applies a function to each item in a list.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>any</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Returns true if any item in a boolean list is true.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>contains</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Checks membership in a set or list.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>matchSet</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Maps a set param to authored expressions in authored arm order.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>filter</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Keeps list items where a predicate returns true.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>dedupeByKey</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Deduplicates record lists by their <code>key</code> field, preserving the first definition.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>filterWhere</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Compiles <code>FilterInput</code> values against an authored filter registry.</td></tr>
+            <tr><td style="border: 1px solid #d4d4d4; padding: 8px;"><code>error</code></td><td style="border: 1px solid #d4d4d4; padding: 8px;">Stops rendering with an explicit message.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>FilterInput</h3>
+        <p>At the JSON boundary, filters are objects with <code>key</code>, <code>op</code> or <code>operator</code>, and usually <code>value</code> or <code>values</code>.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "key": "customer_name",
+  "operator": "like",
+  "value": "Acme"
+}</code></pre>
+
+        <p>Supported canonical operators include <code>equals</code>, <code>not_equals</code>, <code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code>, <code>like</code>, <code>not_like</code>, <code>starts_with</code>, <code>not_starts_with</code>, <code>ends_with</code>, <code>not_ends_with</code>, <code>between</code>, <code>in</code>, <code>not_in</code>, <code>is_null</code>, and <code>is_not_null</code>. Aliases such as <code>eq</code>, <code>equal</code>, <code>ilike</code>, <code>greater_than_or_equal</code>, and <code>less_than_or_equal</code> are normalized. Each filterable still controls which operators are allowed for its key.</p>
+
+        <h3>Runtime context</h3>
+        <p>Chat-scoped runtime values are available under <code>_tql</code> without declaring params:</p>
+        <ul>
+          <li><code>_tql.roleset_by_rolename</code>: set of effective chat role names.</li>
+          <li><code>_tql.role_names</code>: list of effective chat role names.</li>
+          <li><code>_tql.client_attributes_json</code>: client attribute object from the chat/API key context.</li>
+          <li><code>_tql.client_attributes</code>: alias of <code>_tql.client_attributes_json</code>.</li>
+        </ul>
+
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>let
+  tenant_id = _tql.client_attributes_json.tenant_id
+  has_access = any (map (\role -&gt; contains _tql.roleset_by_rolename role) ["tenant_admin", "tenant_viewer"])
+  scoped_tenant_id = if has_access then tenant_id else error "Query requires tenant_admin or tenant_viewer"
+in sql"SELECT * FROM accounts WHERE tenant_id = ${scoped_tenant_id}"</code></pre>
+      </div>
+
+      <div id="features">
+        <h2>Features</h2>
+
+        <h3>Typed query interfaces</h3>
+        <p>A <code>.tql</code> file exposes a small typed API to callers. Required params, nullable params, defaults, set labels, expression-backed set signatures, and filter shapes can be inspected before execution.</p>
+
+        <h3>Semantic-view query surfaces</h3>
+        <p>The standard reusable pattern is a view with <code>metrics</code>, <code>dimensions</code>, and <code>filters</code>. Callers get a compact surface. Authors keep SQL structure, join logic, grouping behavior, and filter rules in code.</p>
+
+        <h3>Safe parameter interpolation</h3>
+        <p>Caller values do not become SQL structure directly. They render as bind values or inline-escaped values. Authored fragments are the only way to introduce SQL structure.</p>
+
+        <h3>Transparent SQL assembly</h3>
+        <p><code>.tql</code> uses sanitized string interpolation and lambdas instead of hiding logic behind a query compiler. Authors can represent imperfect warehouse reality directly, including hand-tuned SQL, custom formulas, conditional joins, role-playing dimensions, warehouse-specific functions, and messy legacy conventions that are hard to encode in conventional semantic layers.</p>
+
+        <h3>Governed arbitrary filtering</h3>
+        <p><code>filterWhere</code> allows flexible caller filters without raw SQL from the caller. The author controls filter keys, SQL expressions, and allowed operators.</p>
+
+        <h3>Modular reuse</h3>
+        <p>Imports allow table backing definitions, relation modules, dimensions, measures, filters, key lists, and query templates to live in separate files. This keeps definitions small without hiding behavior in application state. Because <code>Set</code> signatures can reference pure expressions such as <code>obj_order.metric_keys</code> or <code>obj_order.dimension_keys ++ obj_customer.dimension_keys</code>, multi-file modules can define the allowed query surface once and reuse it in entrypoints.</p>
+
+        <h3>Access-aware modeling</h3>
+        <p><code>.tql</code> can branch on role names and client attributes through <code>_tql</code>. This lets teams model tenant scoping, regional scoping, role-based visibility, and personalization in versioned files.</p>
+
+        <h3>Versioned governance</h3>
+        <p>Because <code>.tql</code> lives in the ontology repo, semantic changes can be proposed, diffed, reviewed, approved, reverted, and audited like software changes.</p>
+
+        <h3>Ana-readable context</h3>
+        <p>Ana can read a <code>.tql</code> file and learn the business terms, valid dimensions, trusted joins, metric definitions, filter grammar, runtime access rules, and final SQL shape. This makes <code>.tql</code> both executable code and high-signal context.</p>
+
+        <h3>Current limitations</h3>
+        <ul>
+          <li><code>Date</code> and <code>Timestamp</code> params are strings at validation time. Document format expectations in comments.</li>
+          <li>Plain SQL bodies only support param-name interpolation. Use expression-style <code>.tql</code> for computed fragments.</li>
+          <li>Structured source assembly with compiler-managed join aliases is a design direction, not the current authoring surface. Today, joins are authored as SQL fragments.</li>
+        </ul>
+      </div>
+
+      <div id="patterns">
+        <h2>Patterns</h2>
+
+        <h3>1. Plain template query</h3>
+        <p>Use when the user-facing API is a few direct values and the SQL shape is fixed.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>params {
+  customer_id: Int
+  start_date: Date?
+}
+
+SELECT *
+FROM orders
+WHERE customer_id = ${customer_id}
+  AND (${start_date} IS NULL OR ordered_at &gt;= ${start_date})</code></pre>
+
+        <h4>Example input</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "customer_id": 42,
+  "start_date": "2026-01-01"
+}</code></pre>
+        <h4>Rendered SQL</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT *
+FROM orders
+WHERE customer_id = 42
+  AND ('2026-01-01' IS NULL OR ordered_at &gt;= '2026-01-01')</code></pre>
+
+        <h3>2. Semantic view</h3>
+        <p>Use when callers should select governed metrics, dimensions, and filters.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>params {
+  metrics: Set&lt;"revenue" | "order_count"&gt; = []
+  dimensions: Set&lt;"customer" | "month"&gt; = []
+  filters: List&lt;FilterInput&gt; = []
+}
+
+let
+  metric_frags = matchSet metrics {
+    "revenue" -&gt; sql"SUM(o.revenue) AS revenue"
+    "order_count" -&gt; sql"COUNT(DISTINCT o.id) AS order_count"
+  }
+  dim_entries = matchSet dimensions {
+    "customer" -&gt; { expr = sql"c.name", join = sql"JOIN customers c ON o.customer_id = c.id" }
+    "month" -&gt; { expr = sql"DATE_TRUNC('month', o.ordered_at)", join = sql"" }
+  }
+  filterables = [
+    { key = "customer_name", expr = sql"c.name", ops = ["equals", "like"] }
+  , { key = "ordered_at", expr = sql"o.ordered_at", ops = ["gte", "lte", "between"] }
+  ]
+  joins = concatSep " " (map (\d -&gt; d.join) dim_entries)
+  select_dims = concatSep ", " (map (\d -&gt; d.expr) dim_entries)
+  select_metrics = concatSep ", " metric_frags
+  select_expr = if isEmpty select_dims &amp;&amp; isEmpty select_metrics then sql"*"
+    else if isEmpty select_dims then select_metrics
+    else if isEmpty select_metrics then select_dims
+    else sql"${select_dims}, ${select_metrics}"
+  where_clause = wrap "WHERE " "" (filterWhere filterables filters)
+  group_clause = wrap "GROUP BY " "" select_dims
+in sql''
+  SELECT ${select_expr}
+  FROM orders o
+  ${joins}
+  ${where_clause}
+  ${group_clause}
+''</code></pre>
+
+        <h4>Example input</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "metrics": ["revenue", "order_count"],
+  "dimensions": ["customer", "month"],
+  "filters": [
+    { "key": "customer_name", "operator": "like", "value": "Acme" },
+    { "key": "ordered_at", "operator": "gte", "value": "2026-01-01" }
+  ]
+}</code></pre>
+        <h4>Rendered SQL</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT c.name, DATE_TRUNC('month', o.ordered_at), SUM(o.revenue) AS revenue, COUNT(DISTINCT o.id) AS order_count
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+WHERE c.name ILIKE '%Acme%' AND o.ordered_at &gt;= '2026-01-01'
+GROUP BY c.name, DATE_TRUNC('month', o.ordered_at)</code></pre>
+
+        <h3>3. File reuse with imports</h3>
+        <p>Use imports when several views share backing table names, helper predicates, measures, or dimension definitions. Keep files small and named after their role.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- relations/orders.tql
+let
+  source = sql"analytics.orders o"
+  id = sql"o.id"
+  customer_id = sql"o.customer_id"
+  revenue = sql"o.revenue"
+  ordered_at = sql"o.ordered_at"
+in { source, id, customer_id, revenue, ordered_at }</code></pre>
+
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- filters/compare.tql
+let
+  eq = \col val -&gt; sql"${col} = ${val}"
+  gte = \col val -&gt; sql"${col} &gt;= ${val}"
+in { eq, gte }</code></pre>
+
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- queries/revenue_by_customer.tql
+import o from "../relations/orders.tql"
+import { eq } from "../filters/compare.tql"
+
+params {
+  customer_id: Int?
+}
+
+let
+  where_clause = if customer_id != null then sql"WHERE ${eq o.customer_id customer_id}" else sql""
+in sql''
+  SELECT o.customer_id, SUM(${o.revenue}) AS revenue
+  FROM ${o.source}
+  ${where_clause}
+  GROUP BY o.customer_id
+''</code></pre>
+
+        <h4>Example input</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "customer_id": 42
+}</code></pre>
+        <h4>Rendered SQL</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT o.customer_id, SUM(o.revenue) AS revenue
+FROM analytics.orders o
+WHERE o.customer_id = 42
+GROUP BY o.customer_id</code></pre>
+
+        <h3>4. Fact and dimension star schema pattern</h3>
+        <p>The fact and dimension pattern separates reusable object modules from query entrypoints. Object modules export backing tables, source helpers, metric keys, dimension keys, filter keys, semantic key checks, joins, metrics, dimensions, and filterables. Query files import the relevant object modules and compose them into a fact-centered view.</p>
+
+        <p>This pattern is important because <code>Set</code> param signatures can be pure expressions. A query can expose <code>Set&lt;obj_order.metric_keys&gt;</code> or <code>Set&lt;obj_order.dimension_keys ++ obj_customer.dimension_keys&gt;</code>, so the allowed query surface is assembled from imported files rather than copied into every entrypoint.</p>
+
+        <p>This is also the pattern used by the legacy ontology auto-migration, but it is a useful hand-authored pattern whenever a domain has clear fact tables and dimension tables.</p>
+
+        <p>Object modules usually follow this shape:</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- objects/order.tql
+let
+  backing = sql"warehouse.orders"
+  source = \alias -&gt; sql"${backing} ${alias}"
+
+  metric_keys = ["Order.revenue", "Order.order_count"]
+  dimension_keys = ["Order.status", "Order.month"]
+  filter_keys = ["Order.status", "Order.ordered_at"]
+  semantic_keys = dimension_keys ++ filter_keys
+
+  needs = \dimensions filter_keys -&gt;
+    any (map (\k -&gt; contains dimensions k || any (map (\fk -&gt; fk == k) filter_keys)) semantic_keys)
+
+  join = \alias parent_alias parent_key key -&gt;
+    sql"JOIN ${source alias} ON ${parent_alias}.${parent_key} = ${alias}.${key}"
+
+  join_if = \needed alias parent_alias parent_key key -&gt;
+    if needed then join alias parent_alias parent_key key else sql""
+
+  metrics = \alias selected -&gt; matchSet selected {
+    "Order.revenue" -&gt; sql"SUM(${alias}.net_revenue) AS revenue"
+    "Order.order_count" -&gt; sql"COUNT(DISTINCT ${alias}.id) AS order_count"
+  }
+
+  dimensions = \alias -&gt; [
+    { key = "Order.status", label = "status", expr = sql"${alias}.status" }
+  , { key = "Order.month", label = "month", expr = sql"DATE_TRUNC('month', ${alias}.ordered_at)" }
+  ]
+
+  filterables = \alias -&gt; [
+    { key = "Order.status", label = "status", expr = sql"${alias}.status", ops = ["equals", "not_equals", "in"] }
+  , { key = "Order.ordered_at", label = "ordered_at", expr = sql"${alias}.ordered_at", ops = ["gte", "lte", "between"] }
+  ]
+in { backing, source, metric_keys, dimension_keys, filter_keys, semantic_keys, needs, join, join_if, metrics, dimensions, filterables }</code></pre>
+
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- objects/customer.tql
+let
+  backing = sql"warehouse.customers"
+  source = \alias -&gt; sql"${backing} ${alias}"
+
+  metric_keys = []
+  dimension_keys = ["Customer.name", "Customer.region"]
+  filter_keys = ["Customer.name", "Customer.region"]
+  semantic_keys = dimension_keys ++ filter_keys
+
+  needs = \dimensions filter_keys -&gt;
+    any (map (\k -&gt; contains dimensions k || any (map (\fk -&gt; fk == k) filter_keys)) semantic_keys)
+
+  join = \alias parent_alias parent_key key -&gt;
+    sql"JOIN ${source alias} ON ${parent_alias}.${parent_key} = ${alias}.${key}"
+
+  join_if = \needed alias parent_alias parent_key key -&gt;
+    if needed then join alias parent_alias parent_key key else sql""
+
+  metrics = \alias selected -&gt; []
+  dimensions = \alias -&gt; [
+    { key = "Customer.name", label = "customer_name", expr = sql"${alias}.name" }
+  , { key = "Customer.region", label = "customer_region", expr = sql"${alias}.region" }
+  ]
+  filterables = \alias -&gt; [
+    { key = "Customer.name", label = "customer_name", expr = sql"${alias}.name", ops = ["equals", "like"] }
+  , { key = "Customer.region", label = "customer_region", expr = sql"${alias}.region", ops = ["equals", "in"] }
+  ]
+in { backing, source, metric_keys, dimension_keys, filter_keys, semantic_keys, needs, join, join_if, metrics, dimensions, filterables }</code></pre>
+
+        <p>Query entrypoints compose object modules into one callable surface:</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>-- queries/order.tql
+import obj_order from "../objects/order.tql"
+import obj_customer from "../objects/customer.tql"
+
+params {
+  metrics: Set&lt;obj_order.metric_keys&gt; = []
+  dimensions: Set&lt;obj_order.dimension_keys ++ obj_customer.dimension_keys&gt; = []
+  filters: List&lt;FilterInput&gt; = []
+}
+
+let
+  order_alias = sql"order_object"
+  customer_alias = sql"customer"
+
+  metric_frags = obj_order.metrics order_alias metrics
+  all_dim_entries = dedupeByKey (obj_order.dimensions order_alias ++ obj_customer.dimensions customer_alias)
+  dim_entries = filter (\d -&gt; contains dimensions d.key) all_dim_entries
+
+  filter_keys = map (\f -&gt; f.key) filters
+  needs_customer = obj_customer.needs dimensions filter_keys
+  join_customer = obj_customer.join_if needs_customer customer_alias order_alias sql"customer_id" sql"id"
+
+  filterables = dedupeByKey (obj_order.filterables order_alias ++ obj_customer.filterables customer_alias)
+  select_dims = concatSep ", " (map (\d -&gt; d.expr) dim_entries)
+  select_metrics = concatSep ", " metric_frags
+  select_expr = if isEmpty select_dims &amp;&amp; isEmpty select_metrics then sql"*"
+    else if isEmpty select_dims then select_metrics
+    else if isEmpty select_metrics then select_dims
+    else sql"${select_dims}, ${select_metrics}"
+  group_clause = wrap "GROUP BY " "" select_dims
+  where_clause = wrap "WHERE " "" (filterWhere filterables filters)
+in sql''
+  SELECT ${select_expr}
+  FROM ${obj_order.source order_alias}
+  ${join_customer}
+  ${where_clause}
+  ${group_clause}
+''</code></pre>
+
+        <p>The important details are:</p>
+        <ul>
+          <li>Object modules define semantic keys once.</li>
+          <li>Query params compose imported key lists with pure expressions inside <code>Set</code> type signatures.</li>
+          <li><code>needs</code> makes conditional joins local to the object that owns the semantic keys.</li>
+          <li><code>join_if</code> keeps query entrypoints concise.</li>
+          <li><code>dedupeByKey</code> allows several objects to contribute dimensions and filterables without duplicate keys.</li>
+          <li><code>filter</code> turns all imported dimension definitions into only the requested dimensions.</li>
+        </ul>
+
+        <h4>Example input</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "metrics": ["Order.revenue"],
+  "dimensions": ["Customer.region", "Order.month"],
+  "filters": [
+    { "key": "Customer.region", "operator": "in", "values": ["East", "West"] }
+  ]
+}</code></pre>
+        <h4>Rendered SQL</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT customer.region, DATE_TRUNC('month', order_object.ordered_at), SUM(order_object.net_revenue) AS revenue
+FROM warehouse.orders order_object
+JOIN warehouse.customers customer ON order_object.customer_id = customer.id
+WHERE customer.region IN ('East', 'West')
+GROUP BY customer.region, DATE_TRUNC('month', order_object.ordered_at)</code></pre>
+
+        <h3>5. Fail-closed row-level scoping</h3>
+        <p>Use <code>error</code> when an access condition is not met. Do not silently render unscoped SQL.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>let
+  tenant_id = _tql.client_attributes_json.tenant_id
+  has_access = any (map (\role -&gt; contains _tql.roleset_by_rolename role) ["tenant_admin", "tenant_viewer"])
+  scoped_tenant_id = if has_access then tenant_id else error "Query requires tenant_admin or tenant_viewer"
+in sql''
+  SELECT *
+  FROM accounts
+  WHERE tenant_id = ${scoped_tenant_id}
+''</code></pre>
+
+        <h4>Example runtime context</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "roleset_by_rolename": ["tenant_viewer"],
+  "client_attributes_json": { "tenant_id": "tenant-123" }
+}</code></pre>
+        <h4>Rendered SQL</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT *
+FROM accounts
+WHERE tenant_id = 'tenant-123'</code></pre>
+        <h4>Intentional error</h4>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "roleset_by_rolename": [],
+  "client_attributes_json": { "tenant_id": "tenant-123" }
+}</code></pre>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>Expected error:
+Query requires tenant_admin or tenant_viewer</code></pre>
+      </div>
+
+      <div id="best-practices">
+        <h2>Best Practices</h2>
+
+        <h3>Modeling</h3>
+        <ul>
+          <li>Prefer a plain SQL template when a few direct params are enough.</li>
+          <li>Prefer a semantic view when users need reusable metrics, dimensions, and filters.</li>
+          <li>Use the same labels that business users use, even if the warehouse column names differ.</li>
+          <li>Alias every computed metric with <code>AS stable_metric_name</code>.</li>
+          <li>Keep metric definitions at the grain where they are valid. Do not join facts at different grains unless the query explicitly protects against duplication.</li>
+          <li>Make bridge joins and many-to-many joins obvious in comments and names.</li>
+          <li>For date dimensions, expose useful grains such as day, week, month, or year as separate dimension labels.</li>
+        </ul>
+
+        <h3>Locality and reuse</h3>
+        <ul>
+          <li>Keep behavior near the query surface it affects.</li>
+          <li>Extract shared logic only when it removes real duplication or prevents inconsistent definitions.</li>
+          <li>Put shared backing table definitions in <code>schema.tql</code> or <code>_defs/*.tql</code> so table renames are local.</li>
+          <li>Keep imported modules small: relations, dimensions, measures, filters, and query entrypoints are easier to navigate than a single large utility file.</li>
+          <li>Prefer obvious import names: <code>orders</code>, <code>customers</code>, <code>dims</code>, <code>filters</code>, <code>revenue</code>.</li>
+        </ul>
+
+        <h3>Parameters and docs</h3>
+        <ul>
+          <li>Document every user-facing param with <code>--</code> comments immediately above the declaration.</li>
+          <li>For date and timestamp params, document accepted formats and timezone assumptions.</li>
+          <li>For <code>filters</code>, document allowed keys and operators because <code>inspect</code> exposes those comments to users and Ana.</li>
+          <li>Use nullable params only when <code>null</code> has clear meaning.</li>
+          <li>Use <code>Set&lt;"..."&gt;</code> when callers select from a known set of SQL structures.</li>
+        </ul>
+
+        <h3>Safety and correctness</h3>
+        <ul>
+          <li>Never quote interpolations inside SQL string literals.</li>
+          <li>Never accept raw SQL as a string param to splice into a query.</li>
+          <li>Use <code>filterWhere</code> instead of hand-rolled string concatenation for arbitrary filters.</li>
+          <li>Use <code>if</code> and <code>wrap</code> for optional clauses.</li>
+          <li>Use <code>error</code> to reject unsupported parameter combinations or missing runtime access context.</li>
+          <li>Render generated SQL before execution when changing a <code>.tql</code> file.</li>
+        </ul>
+
+        <h3>Ana usage</h3>
+        <ul>
+          <li>Ana should prefer a relevant <code>.tql</code> file over raw SQL when the file covers the user's question.</li>
+          <li>Ana should inspect params before rendering or executing unfamiliar <code>.tql</code>.</li>
+          <li>Ana should use direct SQL for exploration when no <code>.tql</code> file fits, then propose a <code>.tql</code> improvement if the analysis pattern becomes reusable.</li>
+          <li>Ana should keep proposed <code>.tql</code> patches minimal, reviewable, and colocated with related files.</li>
+        </ul>
+      </div>
+
+      <div id="examples">
+        <h2>Small Example</h2>
+        <p>This example shows a tiny ontology repo area with table reuse, semantic dimensions, reusable filter helpers, and a query entrypoint.</p>
+
+        <h3>Directory layout</h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>ontology/commerce/
+  schema.tql
+  relations/orders.tql
+  dimensions/customer.tql
+  filters/compare.tql
+  queries/revenue_by_customer.tql
+  notes/revenue-definition.md</code></pre>
+
+        <h3><code>schema.tql</code></h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>let
+  orders = { backing = sql"analytics.orders" }
+  customers = { backing = sql"analytics.customers" }
+in { orders, customers }</code></pre>
+
+        <h3><code>relations/orders.tql</code></h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>import schema from "../schema.tql"
+
+let
+  source = sql"${schema.orders.backing} o"
+  id = sql"o.id"
+  customer_id = sql"o.customer_id"
+  revenue = sql"o.net_revenue"
+  ordered_at = sql"o.ordered_at"
+in { source, id, customer_id, revenue, ordered_at }</code></pre>
+
+        <h3><code>dimensions/customer.tql</code></h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>import schema from "../schema.tql"
+import orders from "../relations/orders.tql"
+
+let
+  join = sql"JOIN ${schema.customers.backing} c ON ${orders.customer_id} = c.id"
+  name = { expr = sql"c.name", join }
+  region = { expr = sql"c.region", join }
+in { name, region }</code></pre>
+
+        <h3><code>filters/compare.tql</code></h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>let
+  eq = \col val -&gt; sql"${col} = ${val}"
+  gte = \col val -&gt; sql"${col} &gt;= ${val}"
+  lte = \col val -&gt; sql"${col} &lt;= ${val}"
+in { eq, gte, lte }</code></pre>
+
+        <h3><code>queries/revenue_by_customer.tql</code></h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>import orders from "../relations/orders.tql"
+import customer from "../dimensions/customer.tql"
+
+params {
+  -- Metrics to return. Use [] with dimensions to list dimension values without aggregation.
+  metrics: Set&lt;"revenue" | "order_count"&gt; = []
+
+  -- Dimensions to group by. "customer" uses customer name; "region" uses customer region.
+  dimensions: Set&lt;"customer" | "region" | "order_month"&gt; = []
+
+  -- Allowed filters: customer_name (equals, like), region (equals, in), ordered_at (gte, lte, between).
+  filters: List&lt;FilterInput&gt; = []
+
+  -- Required partition year. Example: 2026.
+  year: Int?
+}
+
+let
+  scoped_year = if year == null then error "year is required because orders are partitioned by year" else year
+  metric_frags = matchSet metrics {
+    "revenue" -&gt; sql"SUM(${orders.revenue}) AS revenue"
+    "order_count" -&gt; sql"COUNT(DISTINCT ${orders.id}) AS order_count"
+  }
+  dim_entries = matchSet dimensions {
+    "customer" -&gt; customer.name
+    "region" -&gt; customer.region
+    "order_month" -&gt; { expr = sql"DATE_TRUNC('month', ${orders.ordered_at})", join = sql"" }
+  }
+  filterables = [
+    { key = "customer_name", expr = customer.name.expr, ops = ["equals", "like"] }
+  , { key = "region", expr = customer.region.expr, ops = ["equals", "in"] }
+  , { key = "ordered_at", expr = orders.ordered_at, ops = ["gte", "lte", "between"] }
+  ]
+  filter_keys = map (\f -&gt; f.key) filters
+  needs_customer = any (map (\k -&gt; contains dimensions k || any (map (\fk -&gt; fk == k) filter_keys)) ["customer", "region", "customer_name"])
+  customer_join = if needs_customer then customer.name.join else sql""
+  partition_clause = sql"EXTRACT(year FROM ${orders.ordered_at}) = ${scoped_year}"
+  select_dims = concatSep ", " (map (\d -&gt; d.expr) dim_entries)
+  select_metrics = concatSep ", " metric_frags
+  select_expr = if isEmpty select_dims &amp;&amp; isEmpty select_metrics then sql"*"
+    else if isEmpty select_dims then select_metrics
+    else if isEmpty select_metrics then select_dims
+    else sql"${select_dims}, ${select_metrics}"
+  extra_filters = filterWhere filterables filters
+  predicates = if isEmpty extra_filters then partition_clause else sql"${partition_clause} AND ${extra_filters}"
+  where_clause = wrap "WHERE " "" predicates
+  group_clause = wrap "GROUP BY " "" select_dims
+in sql''
+  SELECT ${select_expr}
+  FROM ${orders.source}
+  ${customer_join}
+  ${where_clause}
+  ${group_clause}
+''</code></pre>
+
+        <h3>Example render params</h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "metrics": ["revenue", "order_count"],
+  "dimensions": ["customer", "order_month"],
+  "year": 2026,
+  "filters": [
+    { "key": "customer_name", "operator": "like", "value": "Acme" },
+    { "key": "ordered_at", "operator": "between", "values": ["2026-01-01", "2026-03-31"] }
+  ]
+}</code></pre>
+
+        <h3>Example rendered SQL</h3>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>SELECT c.name, DATE_TRUNC('month', o.ordered_at), SUM(o.net_revenue) AS revenue, COUNT(DISTINCT o.id) AS order_count
+FROM analytics.orders o
+JOIN analytics.customers c ON o.customer_id = c.id
+WHERE EXTRACT(year FROM o.ordered_at) = 2026 AND c.name ILIKE '%Acme%' AND o.ordered_at BETWEEN '2026-01-01' AND '2026-03-31'
+GROUP BY c.name, DATE_TRUNC('month', o.ordered_at)</code></pre>
+
+        <h3>Intentional business logic error</h3>
+        <p>The <code>error</code> builtin is useful when a request is syntactically valid but violates a business or warehouse rule. In this example, <code>year</code> is required because the table is partitioned by year.</p>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>{
+  "metrics": ["revenue"],
+  "dimensions": ["customer"],
+  "filters": []
+}</code></pre>
+        <pre style="padding: 12px; overflow: auto; border: 1px solid #d4d4d4;"><code>Expected error:
+year is required because orders are partitioned by year</code></pre>
+
+        <h3>Why this example works</h3>
+        <ul>
+          <li>The public query surface is small: metrics, dimensions, and filters.</li>
+          <li>Warehouse table names live in <code>schema.tql</code>.</li>
+          <li>The customer join is declared near customer dimensions.</li>
+          <li>The query only emits the customer join when a dimension or filter needs it.</li>
+          <li>Filter keys and operators are governed by <code>filterables</code>.</li>
+          <li>Ana can inspect the query params, read related files, render SQL, and explain the business behavior.</li>
+        </ul>
+      </div>
+
+      <div id="ana">
+        <h2>Guidance For Ana</h2>
+        <p>When answering analytics questions, use <code>.tql</code> as the first-class semantic surface.</p>
+        <ol>
+          <li>Search for relevant <code>.tql</code> files by business term, metric name, table name, and filter key.</li>
+          <li>Prefer an existing <code>.tql</code> file when its params can express the user's request.</li>
+          <li>Inspect before use so parameter docs, defaults, and filter contracts are visible.</li>
+          <li>Render before execute when using a <code>.tql</code> file for the first time or after editing it.</li>
+          <li>Use raw SQL for discovery when no <code>.tql</code> file fits, but do not treat raw SQL discoveries as governed definitions.</li>
+          <li>When a raw SQL pattern is repeated or important, propose a small <code>.tql</code> file or a small edit to an existing one.</li>
+          <li>Do not invent metric definitions when a <code>.tql</code> file defines the metric. Use the authored definition or explain why the <code>.tql</code> file is insufficient.</li>
+          <li>Respect runtime scoping. If a <code>.tql</code> file uses <code>_tql</code>, preserve its fail-closed behavior.</li>
+        </ol>
+      </div>
+
+      <div id="checklist">
+        <h2>Checklist</h2>
+        <ul>
+          <li>Params use <code>params { ... }</code>, one declaration per line, no commas.</li>
+          <li>Param docs use <code>--</code> comments immediately above declarations.</li>
+          <li>String defaults use double quotes.</li>
+          <li>Equality tests use <code>==</code> and <code>!=</code>, not bare <code>=</code>.</li>
+          <li>Optional clauses use <code>if</code>, <code>isEmpty</code>, and <code>wrap</code>.</li>
+          <li>Interpolations are not wrapped in SQL quotes.</li>
+          <li>List interpolations are not wrapped in extra parentheses.</li>
+          <li>Metrics have stable <code>AS ...</code> aliases.</li>
+          <li>Filter params document allowed keys and operators.</li>
+          <li>Filter behavior uses <code>filterWhere</code> instead of caller-provided SQL.</li>
+          <li>Conditional joins include dimensions and filter keys that require each join.</li>
+          <li>Runtime access checks fail closed with <code>error</code>.</li>
+          <li>Shared table backing definitions live in a local shared file.</li>
+          <li>The file has been inspected and rendered before approval.</li>
+        </ul>
+      </div>
+    </div>
+  
+
+</body></html>
